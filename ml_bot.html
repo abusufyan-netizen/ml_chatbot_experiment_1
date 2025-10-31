@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digit Recognition App</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 30px;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-title {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .upload-btn {
+            width: 100%;
+            padding: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: background 0.3s;
+            margin-bottom: 15px;
+        }
+
+        .upload-btn:hover {
+            background: #5568d3;
+        }
+
+        .canvas-container {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 15px;
+            background: #f9fafb;
+        }
+
+        #imageCanvas {
+            width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: white;
+        }
+
+        .recognize-btn {
+            width: 100%;
+            padding: 15px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: background 0.3s;
+        }
+
+        .recognize-btn:hover {
+            background: #059669;
+        }
+
+        .recognize-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .result-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .result-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .result-digit {
+            font-size: 4em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .result-confidence {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .placeholder {
+            background: #f9fafb;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            color: #6b7280;
+        }
+
+        .correction-section {
+            margin-top: 20px;
+        }
+
+        .correction-title {
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .digit-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        .save-btn {
+            padding: 12px 20px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .save-btn:hover {
+            background: #2563eb;
+        }
+
+        .hint {
+            font-size: 0.85em;
+            color: #6b7280;
+        }
+
+        .training-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .training-info {
+            margin-bottom: 15px;
+        }
+
+        .sample-count {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .train-btn {
+            flex: 1;
+            padding: 12px;
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .train-btn:hover {
+            background: #7c3aed;
+        }
+
+        .train-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .clear-btn {
+            padding: 12px 20px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .clear-btn:hover {
+            background: #dc2626;
+        }
+
+        .instructions {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .instructions h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .instructions ol {
+            padding-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 10px;
+            color: #4b5563;
+            line-height: 1.6;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #fileInput {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔢 Digit Recognition App</h1>
+        <p class="subtitle">Upload a handwritten digit image and let AI recognize it. Correct mistakes to improve accuracy!</p>
+
+        <div class="main-grid">
+            <!-- Left Panel - Image Upload -->
+            <div class="card">
+                <h2 class="card-title">Upload Image</h2>
+                
+                <input type="file" id="fileInput" accept="image/*">
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    📤 Choose Image
+                </button>
+
+                <div class="canvas-container">
+                    <canvas id="imageCanvas" width="280" height="280"></canvas>
+                </div>
+
+                <button class="recognize-btn" id="recognizeBtn" onclick="recognizeDigit()" disabled>
+                    🔍 Recognize Digit
+                </button>
+            </div>
+
+            <!-- Right Panel - Results -->
+            <div class="card">
+                <h2 class="card-title">Results</h2>
+                
+                <div id="resultContainer">
+                    <div class="placeholder">
+                        Upload an image and click "Recognize Digit" to see results
+                    </div>
+                </div>
+
+                <div id="correctionSection" style="display: none;">
+                    <div class="correction-section">
+                        <h3 class="correction-title">Was this correct?</h3>
+                        
+                        <div class="input-group">
+                            <input 
+                                type="number" 
+                                id="correctDigit" 
+                                class="digit-input" 
+                                min="0" 
+                                max="9" 
+                                placeholder="Enter correct digit (0-9)"
+                            >
+                            <button class="save-btn" onclick="handleCorrection()">
+                                💾 Save
+                            </button>
+                        </div>
+                        <p class="hint">If the prediction is wrong, enter the correct digit to help the model learn.</p>
+                    </div>
+
+                    <div class="training-section">
+                        <h3 class="correction-title">Training Data</h3>
+                        <div class="training-info">
+                            Collected samples: <span class="sample-count" id="sampleCount">0</span>
+                        </div>
+                        
+                        <div class="button-group">
+                            <button class="train-btn" id="trainBtn" onclick="trainModel()" disabled>
+                                🎓 Train Model
+                            </button>
+                            <button class="clear-btn" id="clearBtn" onclick="clearTrainingData()" disabled>
+                                🗑️
+                            </button>
+                        </div>
+                        
+                        <p class="hint" style="margin-top: 10px;">
+                            Collect multiple samples, then click "Train Model" to improve accuracy
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="instructions">
+            <h3>📖 How to Use:</h3>
+            <ol>
+                <li>Upload an image containing a handwritten digit (0-9)</li>
+                <li>Click "Recognize Digit" to let the AI identify the number</li>
+                <li>If the prediction is incorrect, enter the correct digit and click "Save"</li>
+                <li>After collecting several corrections, click "Train Model" to improve accuracy</li>
+                <li>The model will learn from your corrections and become more accurate over time</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        let model = null;
+        let currentImage = null;
+        let trainingData = [];
+        let isTraining = false;
+
+        // Initialize model on page load
+        async function initializeModel() {
+            console.log('Initializing TensorFlow.js model...');
+            
+            model = tf.sequential({
+                layers: [
+                    tf.layers.conv2d({
+                        inputShape: [28, 28, 1],
+                        kernelSize: 3,
+                        filters: 32,
+                        activation: 'relu'
+                    }),
+                    tf.layers.maxPooling2d({ poolSize: 2 }),
+                    tf.layers.conv2d({
+                        kernelSize: 3,
+                        filters: 64,
+                        activation: 'relu'
+                    }),
+                    tf.layers.maxPooling2d({ poolSize: 2 }),
+                    tf.layers.flatten(),
+                    tf.layers.dense({ units: 128, activation: 'relu' }),
+                    tf.layers.dropout({ rate: 0.2 }),
+                    tf.layers.dense({ units: 10, activation: 'softmax' })
+                ]
+            });
+
+            model.compile({
+                optimizer: tf.train.adam(0.001),
+                loss: 'categoricalCrossentropy',
+                metrics: ['accuracy']
+            });
+
+            console.log('Model initialized successfully!');
+        }
+
+        // Handle file upload
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    currentImage = img;
+                    
+                    // Draw on canvas
+                    const canvas = document.getElementById('imageCanvas');
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, 280, 280);
+                    
+                    // Enable recognize button
+                    document.getElementById('recognizeBtn').disabled = false;
+                    
+                    // Reset results
+                    document.getElementById('resultContainer').innerHTML = `
+                        <div class="placeholder">
+                            Click "Recognize Digit" to see the prediction
+                        </div>
+                    `;
+                    document.getElementById('correctionSection').style.display = 'none';
+                    document.getElementById('correctDigit').value = '';
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Preprocess image
+        function preprocessImage(imgElement) {
+            return tf.tidy(() => {
+                let tensor = tf.browser.fromPixels(imgElement, 1);
+                tensor = tf.image.resizeBilinear(tensor, [28, 28]);
+                tensor = tensor.div(255.0);
+                tensor = tensor.expandDims(0);
+                return tensor;
+            });
+        }
+
+        // Recognize digit
+        async function recognizeDigit() {
+            if (!model || !currentImage) return;
+
+            const tensor = preprocessImage(currentImage);
+            const predictions = await model.predict(tensor).data();
+            
+            const predictedDigit = predictions.indexOf(Math.max(...predictions));
+            const confidence = (Math.max(...predictions) * 100).toFixed(2);
+            
+            // Display results
+            document.getElementById('resultContainer').innerHTML = `
+                <div class="result-box">
+                    <div class="result-label">Predicted Digit:</div>
+                    <div class="result-digit">${predictedDigit}</div>
+                    <div class="result-confidence">Confidence: ${confidence}%</div>
+                </div>
+            `;
+            
+            document.getElementById('correctionSection').style.display = 'block';
+            
+            tensor.dispose();
+        }
+
+        // Handle correction
+        function handleCorrection() {
+            const correctDigit = document.getElementById('correctDigit').value;
+            
+            if (!currentImage || correctDigit === '' || isNaN(correctDigit)) {
+                alert('Please enter a valid digit (0-9)');
+                return;
+            }
+
+            const digit = parseInt(correctDigit);
+            if (digit < 0 || digit > 9) {
+                alert('Please enter a digit between 0 and 9');
+                return;
+            }
+
+            trainingData.push({
+                image: currentImage,
+                label: digit
+            });
+
+            document.getElementById('sampleCount').textContent = trainingData.length;
+            document.getElementById('trainBtn').disabled = false;
+            document.getElementById('clearBtn').disabled = false;
+            
+            alert(`Added to training data! Total samples: ${trainingData.length}`);
+            document.getElementById('correctDigit').value = '';
+        }
+
+        // Train model
+        async function trainModel() {
+            if (!model || trainingData.length === 0 || isTraining) return;
+
+            isTraining = true;
+            const trainBtn = document.getElementById('trainBtn');
+            trainBtn.disabled = true;
+            trainBtn.innerHTML = '<span class="spinner"></span> Training...';
+
+            try {
+                const xs = [];
+                const ys = [];
+
+                for (const data of trainingData) {
+                    const tensor = preprocessImage(data.image);
+                    xs.push(tensor);
+                    
+                    const label = tf.oneHot(data.label, 10);
+                    ys.push(label);
+                }
+
+                const xTrain = tf.concat(xs);
+                const yTrain = tf.concat(ys);
+
+                await model.fit(xTrain, yTrain, {
+                    epochs: 10,
+                    batchSize: 32,
+                    validationSplit: 0.1,
+                    callbacks: {
+                        onEpochEnd: (epoch, logs) => {
+                            console.log(`Epoch ${epoch + 1}: loss = ${logs.loss.toFixed(4)}`);
+                        }
+                    }
+                });
+
+                alert('Model trained successfully!');
+                
+                xTrain.dispose();
+                yTrain.dispose();
+                xs.forEach(t => t.dispose());
+                ys.forEach(t => t.dispose());
+            } catch (error) {
+                alert('Training failed: ' + error.message);
+            }
+
+            isTraining = false;
+            trainBtn.disabled = false;
+            trainBtn.innerHTML = '🎓 Train Model';
+        }
+
+        // Clear training data
+        function clearTrainingData() {
+            if (confirm('Are you sure you want to clear all training data?')) {
+                trainingData = [];
+                document.getElementById('sampleCount').textContent = '0';
+                document.getElementById('trainBtn').disabled = true;
+                document.getElementById('clearBtn').disabled = true;
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', initializeModel);
+    </script>
+</body>
+</html>
