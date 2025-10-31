@@ -532,24 +532,30 @@
             trainBtn.innerHTML = '<span class="spinner"></span> Training...';
 
             try {
-                const xs = [];
-                const ys = [];
+                // Prepare training data
+                const xData = [];
+                const yData = [];
 
                 for (const data of trainingData) {
-                    const tensor = preprocessImage(data.image);
-                    xs.push(tensor);
+                    const imgTensor = preprocessImage(data.image);
+                    const imgData = await imgTensor.data();
+                    xData.push(Array.from(imgData));
+                    imgTensor.dispose();
                     
-                    const label = tf.oneHot(data.label, 10);
-                    ys.push(label);
+                    // Create one-hot encoded label
+                    const labelArray = new Array(10).fill(0);
+                    labelArray[data.label] = 1;
+                    yData.push(labelArray);
                 }
 
-                const xTrain = tf.concat(xs);
-                const yTrain = tf.concat(ys);
+                // Create tensors from arrays
+                const xTrain = tf.tensor4d(xData, [xData.length, 28, 28, 1]);
+                const yTrain = tf.tensor2d(yData, [yData.length, 10]);
 
                 await model.fit(xTrain, yTrain, {
                     epochs: 10,
-                    batchSize: 32,
-                    validationSplit: 0.1,
+                    batchSize: Math.min(32, xData.length),
+                    validationSplit: xData.length > 10 ? 0.1 : 0,
                     callbacks: {
                         onEpochEnd: (epoch, logs) => {
                             console.log(`Epoch ${epoch + 1}: loss = ${logs.loss.toFixed(4)}`);
@@ -561,9 +567,8 @@
                 
                 xTrain.dispose();
                 yTrain.dispose();
-                xs.forEach(t => t.dispose());
-                ys.forEach(t => t.dispose());
             } catch (error) {
+                console.error('Training error:', error);
                 alert('Training failed: ' + error.message);
             }
 
@@ -586,4 +591,4 @@
         window.addEventListener('load', initializeModel);
     </script>
 </body>
-</html>
+    </html>
